@@ -4,4 +4,9 @@ dist
 server/public
 vite.config.ts.*
 *.tar.gz
+
+# Server logs
+server-logs.txt
+
+# Sensitive environment variables
 .env
