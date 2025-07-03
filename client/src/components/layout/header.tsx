@@ -2,8 +2,21 @@ import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Activity, Dumbbell, Utensils, Brain, Plus, Menu } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Activity,
+  Dumbbell,
+  Utensils,
+  Brain,
+  Plus,
+  Menu,
+  Calendar,
+} from "lucide-react";
 import { useState } from "react";
 
 export function Header() {
@@ -14,6 +27,7 @@ export function Header() {
   const navigation = [
     { name: "Dashboard", href: "/", icon: Activity },
     { name: "Workouts", href: "/workouts", icon: Dumbbell },
+    { name: "Plans", href: "/workout-plans", icon: Calendar },
     { name: "Meals", href: "/meals", icon: Utensils },
     { name: "Insights", href: "/insights", icon: Brain },
   ];
@@ -41,7 +55,7 @@ export function Header() {
               const isActive = location === item.href;
               return (
                 <Link key={item.name} href={item.href}>
-                  <span className={`nav-link ${isActive ? 'active' : ''}`}>
+                  <span className={`nav-link ${isActive ? "active" : ""}`}>
                     <Icon className="inline mr-2" size={16} />
                     {item.name}
                   </span>
@@ -56,10 +70,13 @@ export function Header() {
               <Plus className="mr-2" size={16} />
               Quick Add
             </Button>
-            
+
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+                <Button
+                  variant="ghost"
+                  className="relative h-8 w-8 rounded-full"
+                >
                   <Avatar className="h-8 w-8">
                     <AvatarFallback>
                       {user?.name?.charAt(0)?.toUpperCase() || "U"}
@@ -68,16 +85,14 @@ export function Header() {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent className="w-56" align="end">
-                <DropdownMenuItem onClick={logout}>
-                  Logout
-                </DropdownMenuItem>
+                <DropdownMenuItem onClick={logout}>Logout</DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
 
             {/* Mobile menu button */}
             <div className="md:hidden">
-              <Button 
-                variant="ghost" 
+              <Button
+                variant="ghost"
                 size="sm"
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               >
@@ -97,11 +112,11 @@ export function Header() {
               const isActive = location === item.href;
               return (
                 <Link key={item.name} href={item.href}>
-                  <span 
+                  <span
                     className={`block px-3 py-2 rounded-md text-sm cursor-pointer ${
-                      isActive 
-                        ? 'text-primary font-medium bg-blue-50' 
-                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                      isActive
+                        ? "text-primary font-medium bg-blue-50"
+                        : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
                     }`}
                     onClick={() => setMobileMenuOpen(false)}
                   >
