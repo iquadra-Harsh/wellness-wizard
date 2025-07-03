@@ -260,11 +260,20 @@ export const insertSetSchema = createInsertSchema(sets).omit({
   createdAt: true,
 });
 
-export const insertMealSchema = createInsertSchema(meals).omit({
-  id: true,
-  userId: true,
-  createdAt: true,
-});
+export const insertMealSchema = createInsertSchema(meals)
+  .omit({
+    id: true,
+    userId: true,
+    createdAt: true,
+  })
+  .extend({
+    date: z.union([z.date(), z.string()]).transform((val) => {
+      if (typeof val === "string") {
+        return new Date(val);
+      }
+      return val;
+    }),
+  });
 
 export const insertInsightSchema = createInsertSchema(insights).omit({
   id: true,
