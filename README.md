@@ -4,7 +4,7 @@ What: Track meals, workouts, and symptoms. AI provides personalized insights or 
 
 Depth: Data visualization, trends, basic ML for recommendations, user authentication.
 
-Stack: React & TailwindCSS, Python (FastAPI) backend, PostgreSQL database, AI for insights.
+Stack: React & TailwindCSS, NodeJS backend, PostgreSQL database, AI for insights.
 
 ## 🟢 MVP Goals & Features
 1. User Authentication
