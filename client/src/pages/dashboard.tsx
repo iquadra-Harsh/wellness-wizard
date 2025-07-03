@@ -82,6 +82,18 @@ export default function Dashboard() {
     },
   });
 
+  const { data: userGoals } = useQuery({
+    queryKey: ["/api/user-goals"],
+    queryFn: async () => {
+      const response = await fetch("/api/user-goals", {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("fittracker_token")}`,
+        },
+      });
+      return response.json();
+    },
+  });
+
   // Generate last 7 days for activity chart
   const last7Days = eachDayOfInterval({
     start: subDays(new Date(), 6),
@@ -128,9 +140,10 @@ export default function Dashboard() {
     .sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime())
     .slice(0, 3);
 
+  const weeklyWorkoutGoal = userGoals?.weeklyWorkoutGoal || 4;
   const goalProgress = Math.min(
     100,
-    Math.round(((workoutStats?.totalWorkouts || 0) / 4) * 100)
+    Math.round(((workoutStats?.totalWorkouts || 0) / weeklyWorkoutGoal) * 100)
   );
 
   return (

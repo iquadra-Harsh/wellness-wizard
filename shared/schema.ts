@@ -293,12 +293,33 @@ export const insertWorkoutPlanDaySchema = createInsertSchema(
   id: true,
 });
 
-export const insertUserGoalsSchema = createInsertSchema(userGoals).omit({
-  id: true,
-  userId: true,
-  createdAt: true,
-  updatedAt: true,
-});
+export const insertUserGoalsSchema = createInsertSchema(userGoals)
+  .omit({
+    id: true,
+    userId: true,
+    createdAt: true,
+    updatedAt: true,
+  })
+  .extend({
+    weightGoal: z
+      .union([z.number(), z.string()])
+      .transform((val) => {
+        if (typeof val === "number") {
+          return val.toString();
+        }
+        return val;
+      })
+      .optional(),
+    targetBodyFat: z
+      .union([z.number(), z.string()])
+      .transform((val) => {
+        if (typeof val === "number") {
+          return val.toString();
+        }
+        return val;
+      })
+      .optional(),
+  });
 
 // Types
 export type User = typeof users.$inferSelect;

@@ -34,6 +34,7 @@ export default function WorkoutPlans() {
 
   const { data: nextDay } = useQuery<WorkoutPlanDay>({
     queryKey: ["/api/workout-plans/next-day"],
+    enabled: !!activePlan,
   });
 
   const deleteMutation = useMutation({
@@ -48,6 +49,9 @@ export default function WorkoutPlans() {
       queryClient.invalidateQueries({ queryKey: ["/api/workout-plans"] });
       queryClient.invalidateQueries({
         queryKey: ["/api/workout-plans/active"],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/workout-plans/next-day"],
       });
     },
     onError: (error: any) => {
