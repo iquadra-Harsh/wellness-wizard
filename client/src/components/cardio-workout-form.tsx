@@ -1,4 +1,5 @@
 import { useForm } from "react-hook-form";
+import { useEffect } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -45,6 +46,7 @@ type CardioWorkoutFormData = z.infer<typeof cardioWorkoutFormSchema>;
 interface CardioWorkoutFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  workout?: any; // Workout to edit
 }
 
 const cardioTypes = [
@@ -69,6 +71,7 @@ const cardioTypes = [
 export function CardioWorkoutForm({
   open,
   onOpenChange,
+  workout,
 }: CardioWorkoutFormProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -86,12 +89,40 @@ export function CardioWorkoutForm({
     },
   });
 
+  // Initialize form with workout data when editing
+  useEffect(() => {
+    if (workout && open) {
+      form.reset({
+        type: workout.type || "",
+        workoutType: workout.workoutType || "cardio",
+        duration: workout.duration || 30,
+        distance: workout.distance ? parseFloat(workout.distance) : undefined,
+        caloriesBurned: workout.caloriesBurned || undefined,
+        notes: workout.notes || "",
+        date: workout.date
+          ? new Date(workout.date).toISOString().slice(0, 16)
+          : new Date().toISOString().slice(0, 16),
+      });
+    } else if (!workout && open) {
+      form.reset({
+        type: "",
+        workoutType: "cardio",
+        duration: 30,
+        distance: undefined,
+        caloriesBurned: undefined,
+        notes: "",
+        date: new Date().toISOString().slice(0, 16),
+      });
+    }
+  }, [workout, open, form]);
+
   const createMutation = useMutation({
     mutationFn: async (data: CardioWorkoutFormData) => {
       const response = await apiRequest("POST", "/api/workouts", {
         workout: {
           ...data,
           date: data.date ? new Date(data.date) : new Date(),
+          distance: data.distance ? data.distance.toString() : undefined,
         },
       });
       return response.json();
@@ -112,8 +143,39 @@ export function CardioWorkoutForm({
     },
   });
 
+  const updateMutation = useMutation({
+    mutationFn: async (data: CardioWorkoutFormData) => {
+      const response = await apiRequest("PUT", `/api/workouts/${workout.id}`, {
+        workout: {
+          ...data,
+          date: data.date ? new Date(data.date) : new Date(),
+          distance: data.distance ? data.distance.toString() : undefined,
+        },
+      });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/workouts"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/workouts/stats"] });
+      toast({ title: "Cardio workout updated successfully!" });
+      onOpenChange(false);
+      form.reset();
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Failed to update cardio workout",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
   const onSubmit = async (data: CardioWorkoutFormData) => {
-    createMutation.mutate(data);
+    if (workout) {
+      updateMutation.mutate(data);
+    } else {
+      createMutation.mutate(data);
+    }
   };
 
   const selectedType = form.watch("type");
@@ -132,7 +194,7 @@ export function CardioWorkoutForm({
         <DialogHeader>
           <DialogTitle className="flex items-center">
             <Heart className="w-5 h-5 mr-2" />
-            Log Cardio Workout
+            {workout ? "Edit Cardio Workout" : "Log Cardio Workout"}
           </DialogTitle>
         </DialogHeader>
 
@@ -278,10 +340,16 @@ export function CardioWorkoutForm({
               </Button>
               <Button
                 type="submit"
-                disabled={createMutation.isPending}
+                disabled={createMutation.isPending || updateMutation.isPending}
                 className="flex-1"
               >
-                {createMutation.isPending ? "Logging..." : "Log Workout"}
+                {workout
+                  ? updateMutation.isPending
+                    ? "Updating..."
+                    : "Update Workout"
+                  : createMutation.isPending
+                  ? "Logging..."
+                  : "Log Workout"}
               </Button>
             </div>
           </form>
