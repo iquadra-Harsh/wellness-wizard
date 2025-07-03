@@ -129,11 +129,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     authenticateToken,
     async (req: AuthRequest, res) => {
       try {
-        const workoutData = insertWorkoutSchema.parse(req.body);
-        const workout = await storage.createWorkout({
-          ...workoutData,
-          userId: req.userId!,
-        });
+        const { workout: workoutData, exercises } = req.body;
+        const parsedWorkoutData = insertWorkoutSchema.parse(workoutData);
+
+        const workout = await storage.createWorkout(
+          {
+            ...parsedWorkoutData,
+            userId: req.userId!,
+          },
+          exercises
+        );
+
         res.json(workout);
       } catch (error: any) {
         res
@@ -149,12 +155,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     async (req: AuthRequest, res) => {
       try {
         const id = parseInt(req.params.id);
-        const workoutData = insertWorkoutSchema.partial().parse(req.body);
+        const { workout: workoutData, exercises: exerciseData } = req.body;
+        const parsedWorkoutData = insertWorkoutSchema
+          .partial()
+          .parse(workoutData);
 
         const workout = await storage.updateWorkout(
           id,
           req.userId!,
-          workoutData
+          parsedWorkoutData,
+          exerciseData
         );
         if (!workout) {
           return res.status(404).json({ message: "Workout not found" });
@@ -483,6 +493,61 @@ export async function registerRoutes(app: Express): Promise<Server> {
         res
           .status(500)
           .json({ message: error.message || "Failed to advance workout plan" });
+      }
+    }
+  );
+
+  // User Goals routes
+  app.get(
+    "/api/user-goals",
+    authenticateToken,
+    async (req: AuthRequest, res) => {
+      try {
+        const goals = await storage.getUserGoals(req.userId!);
+        if (!goals) {
+          // Create default goals if none exist
+          const defaultGoals = await storage.createUserGoals({
+            userId: req.userId!,
+            weeklyWorkoutGoal: 4,
+            dailyCalorieGoal: 2000,
+            hydrationGoal: 8,
+          });
+          return res.json(defaultGoals);
+        }
+        res.json(goals);
+      } catch (error: any) {
+        res
+          .status(500)
+          .json({ message: error.message || "Failed to get user goals" });
+      }
+    }
+  );
+
+  app.put(
+    "/api/user-goals",
+    authenticateToken,
+    async (req: AuthRequest, res) => {
+      try {
+        const { insertUserGoalsSchema } = await import("@shared/schema");
+        const goalsData = insertUserGoalsSchema.parse(req.body);
+
+        const existingGoals = await storage.getUserGoals(req.userId!);
+
+        let updatedGoals;
+        if (existingGoals) {
+          updatedGoals = await storage.updateUserGoals(req.userId!, goalsData);
+        } else {
+          updatedGoals = await storage.createUserGoals({
+            ...goalsData,
+            userId: req.userId!,
+          });
+        }
+
+        res.json(updatedGoals);
+      } catch (error: any) {
+        res
+          .status(400)
+          .json({ message: error.message || "Failed to update user goals" });
       }
     }
   );
