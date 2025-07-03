@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -58,18 +58,45 @@ export function MealForm({ open, onOpenChange, meal }: MealFormProps) {
   const form = useForm<MealFormData>({
     resolver: zodResolver(mealFormSchema),
     defaultValues: {
-      type: meal?.type || "",
-      foodItems: meal?.foodItems || "",
-      calories: meal?.calories || 0,
-      protein: meal?.protein ? parseFloat(meal.protein) : undefined,
-      carbs: meal?.carbs ? parseFloat(meal.carbs) : undefined,
-      fat: meal?.fat ? parseFloat(meal.fat) : undefined,
-      notes: meal?.notes || "",
-      date: meal?.date
-        ? new Date(meal.date).toISOString().slice(0, 16)
-        : new Date().toISOString().slice(0, 16),
+      type: "",
+      foodItems: "",
+      calories: 0,
+      protein: undefined,
+      carbs: undefined,
+      fat: undefined,
+      notes: "",
+      date: new Date().toISOString().slice(0, 16),
     },
   });
+
+  // Reset form when meal prop changes
+  useEffect(() => {
+    if (meal && open) {
+      form.reset({
+        type: meal.type || "",
+        foodItems: meal.foodItems || "",
+        calories: meal.calories || 0,
+        protein: meal.protein ? parseFloat(meal.protein) : undefined,
+        carbs: meal.carbs ? parseFloat(meal.carbs) : undefined,
+        fat: meal.fat ? parseFloat(meal.fat) : undefined,
+        notes: meal.notes || "",
+        date: meal.date
+          ? new Date(meal.date).toISOString().slice(0, 16)
+          : new Date().toISOString().slice(0, 16),
+      });
+    } else if (!meal && open) {
+      form.reset({
+        type: "",
+        foodItems: "",
+        calories: 0,
+        protein: undefined,
+        carbs: undefined,
+        fat: undefined,
+        notes: "",
+        date: new Date().toISOString().slice(0, 16),
+      });
+    }
+  }, [meal, open, form]);
 
   const createMutation = useMutation({
     mutationFn: async (data: MealFormData) => {
