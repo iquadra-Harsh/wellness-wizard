@@ -10,6 +10,7 @@ import Login from "@/pages/login";
 import Register from "@/pages/register";
 import Dashboard from "@/pages/dashboard";
 import Workouts from "@/pages/workouts";
+import WorkoutPlans from "@/pages/workout-plans";
 import Meals from "@/pages/meals";
 import Insights from "@/pages/insights";
 
@@ -65,7 +66,7 @@ function Router() {
           <Login />
         </PublicRoute>
       </Route>
-      
+
       <Route path="/register">
         <PublicRoute>
           <Register />
@@ -82,6 +83,12 @@ function Router() {
       <Route path="/workouts">
         <ProtectedRoute>
           <Workouts />
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/workout-plans">
+        <ProtectedRoute>
+          <WorkoutPlans />
         </ProtectedRoute>
       </Route>
 
