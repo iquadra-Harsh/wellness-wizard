@@ -26,6 +26,8 @@ import {
   Trophy,
   AlertCircle,
   Settings,
+  Scale,
+  Activity,
 } from "lucide-react";
 import { format, subWeeks, eachWeekOfInterval } from "date-fns";
 
@@ -562,6 +564,44 @@ export default function Insights() {
                 {hydrationProgress}%
               </div>
             </div>
+
+            {/* Weight Goal */}
+            {userGoals?.weightGoal && (
+              <div className="flex items-center justify-between p-4 bg-purple-50 rounded-lg border border-purple-200">
+                <div className="flex items-center">
+                  <Scale className="text-purple-600 mr-3" size={20} />
+                  <div>
+                    <h4 className="font-medium text-purple-900">Weight Goal</h4>
+                    <p className="text-sm text-purple-700">
+                      Target: {userGoals.weightGoal} lbs
+                    </p>
+                  </div>
+                </div>
+                <div className="text-2xl font-bold text-purple-600">
+                  <Target size={32} />
+                </div>
+              </div>
+            )}
+
+            {/* Target Body Fat */}
+            {userGoals?.targetBodyFat && (
+              <div className="flex items-center justify-between p-4 bg-orange-50 rounded-lg border border-orange-200">
+                <div className="flex items-center">
+                  <Activity className="text-orange-600 mr-3" size={20} />
+                  <div>
+                    <h4 className="font-medium text-orange-900">
+                      Body Fat Goal
+                    </h4>
+                    <p className="text-sm text-orange-700">
+                      Target: {userGoals.targetBodyFat}%
+                    </p>
+                  </div>
+                </div>
+                <div className="text-2xl font-bold text-orange-600">
+                  <Target size={32} />
+                </div>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
