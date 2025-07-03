@@ -191,6 +191,12 @@ export function WorkoutPlanForm({ open, onOpenChange }: WorkoutPlanFormProps) {
         description: "Workout plan created successfully!",
       });
       queryClient.invalidateQueries({ queryKey: ["/api/workout-plans"] });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/workout-plans/active"],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/workout-plans/next-day"],
+      });
       onOpenChange(false);
       form.reset();
       setSelectedSplit("");
