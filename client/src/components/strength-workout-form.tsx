@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -50,11 +50,13 @@ interface Exercise {
 interface StrengthWorkoutFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  workout?: any; // Workout with exercises to edit
 }
 
 export function StrengthWorkoutForm({
   open,
   onOpenChange,
+  workout,
 }: StrengthWorkoutFormProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -74,6 +76,46 @@ export function StrengthWorkoutForm({
       date: new Date().toISOString().slice(0, 16),
     },
   });
+
+  // Initialize form with workout data when editing
+  useEffect(() => {
+    if (workout && open) {
+      form.reset({
+        type: workout.type || "strength",
+        workoutType: workout.workoutType || "strength",
+        duration: workout.duration || 60,
+        notes: workout.notes || "",
+        date: workout.date
+          ? new Date(workout.date).toISOString().slice(0, 16)
+          : new Date().toISOString().slice(0, 16),
+      });
+
+      // Set exercises from workout
+      if (workout.exercises) {
+        const formattedExercises = workout.exercises.map((exercise: any) => ({
+          name: exercise.name,
+          category: exercise.category || "",
+          sets: exercise.sets.map((set: any) => ({
+            setNumber: set.setNumber,
+            reps: set.reps,
+            weight: set.weight,
+            isWarmup: set.isWarmup || false,
+          })),
+        }));
+        setExercises(formattedExercises);
+      }
+    } else if (!workout && open) {
+      // Reset form when creating new workout
+      form.reset({
+        type: "strength",
+        workoutType: "strength",
+        duration: 60,
+        notes: "",
+        date: new Date().toISOString().slice(0, 16),
+      });
+      setExercises([]);
+    }
+  }, [workout, open, form]);
 
   const createMutation = useMutation({
     mutationFn: async (data: {
@@ -100,6 +142,37 @@ export function StrengthWorkoutForm({
     onError: (error: any) => {
       toast({
         title: "Failed to log strength workout",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: async (data: {
+      workout: StrengthWorkoutFormData;
+      exercises: Exercise[];
+    }) => {
+      const response = await apiRequest("PUT", `/api/workouts/${workout.id}`, {
+        workout: {
+          ...data.workout,
+          date: data.workout.date ? new Date(data.workout.date) : new Date(),
+        },
+        exercises: data.exercises,
+      });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/workouts"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/workouts/stats"] });
+      toast({ title: "Strength workout updated successfully!" });
+      onOpenChange(false);
+      form.reset();
+      setExercises([]);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Failed to update strength workout",
         description: error.message,
         variant: "destructive",
       });
@@ -177,7 +250,11 @@ export function StrengthWorkoutForm({
       return;
     }
 
-    createMutation.mutate({ workout: data, exercises });
+    if (workout) {
+      updateMutation.mutate({ workout: data, exercises });
+    } else {
+      createMutation.mutate({ workout: data, exercises });
+    }
   };
 
   return (
@@ -186,7 +263,9 @@ export function StrengthWorkoutForm({
         <DialogHeader>
           <DialogTitle className="flex items-center">
             <Dumbbell className="w-5 h-5 mr-2" />
-            Log Strength Training Workout
+            {workout
+              ? "Edit Strength Training Workout"
+              : "Log Strength Training Workout"}
           </DialogTitle>
         </DialogHeader>
 
@@ -426,10 +505,16 @@ export function StrengthWorkoutForm({
               </Button>
               <Button
                 type="submit"
-                disabled={createMutation.isPending}
+                disabled={createMutation.isPending || updateMutation.isPending}
                 className="flex-1"
               >
-                {createMutation.isPending ? "Logging..." : "Log Workout"}
+                {workout
+                  ? updateMutation.isPending
+                    ? "Updating..."
+                    : "Update Workout"
+                  : createMutation.isPending
+                  ? "Logging..."
+                  : "Log Workout"}
               </Button>
             </div>
           </form>
