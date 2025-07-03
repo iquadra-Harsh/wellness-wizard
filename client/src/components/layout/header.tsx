@@ -66,11 +66,6 @@ export function Header() {
 
           {/* User Menu */}
           <div className="flex items-center space-x-4">
-            <Button className="bg-primary text-white hover:bg-blue-600">
-              <Plus className="mr-2" size={16} />
-              Quick Add
-            </Button>
-
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
