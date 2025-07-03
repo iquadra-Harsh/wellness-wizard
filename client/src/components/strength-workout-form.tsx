@@ -20,16 +20,24 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, X, Dumbbell } from "lucide-react";
+import { Dumbbell, Plus, X, Edit2, Trash2 } from "lucide-react";
 
 const strengthWorkoutFormSchema = z.object({
   type: z.string().default("strength"),
   workoutType: z.string().default("strength"),
   duration: z.number().min(1, "Duration must be at least 1 minute"),
+  caloriesBurned: z.number().optional(),
   notes: z.string().optional(),
   date: z.string().optional(),
 });
@@ -61,10 +69,8 @@ export function StrengthWorkoutForm({
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [exercises, setExercises] = useState<Exercise[]>([]);
-  const [currentExercise, setCurrentExercise] = useState({
-    name: "",
-    category: "",
-  });
+  const [newExerciseName, setNewExerciseName] = useState("");
+  const [newExerciseCategory, setNewExerciseCategory] = useState("");
 
   const form = useForm<StrengthWorkoutFormData>({
     resolver: zodResolver(strengthWorkoutFormSchema),
@@ -72,6 +78,7 @@ export function StrengthWorkoutForm({
       type: "strength",
       workoutType: "strength",
       duration: 60,
+      caloriesBurned: undefined,
       notes: "",
       date: new Date().toISOString().slice(0, 16),
     },
@@ -84,32 +91,28 @@ export function StrengthWorkoutForm({
         type: workout.type || "strength",
         workoutType: workout.workoutType || "strength",
         duration: workout.duration || 60,
+        caloriesBurned: workout.caloriesBurned || undefined,
         notes: workout.notes || "",
         date: workout.date
           ? new Date(workout.date).toISOString().slice(0, 16)
           : new Date().toISOString().slice(0, 16),
       });
 
-      // Set exercises from workout
+      // Load existing exercises if editing
       if (workout.exercises) {
-        const formattedExercises = workout.exercises.map((exercise: any) => ({
+        const loadedExercises = workout.exercises.map((exercise: any) => ({
           name: exercise.name,
           category: exercise.category || "",
-          sets: exercise.sets.map((set: any) => ({
-            setNumber: set.setNumber,
-            reps: set.reps,
-            weight: set.weight,
-            isWarmup: set.isWarmup || false,
-          })),
+          sets: exercise.sets || [],
         }));
-        setExercises(formattedExercises);
+        setExercises(loadedExercises);
       }
     } else if (!workout && open) {
-      // Reset form when creating new workout
       form.reset({
         type: "strength",
         workoutType: "strength",
         duration: 60,
+        caloriesBurned: undefined,
         notes: "",
         date: new Date().toISOString().slice(0, 16),
       });
@@ -180,23 +183,28 @@ export function StrengthWorkoutForm({
   });
 
   const addExercise = () => {
-    if (!currentExercise.name.trim()) {
-      toast({ title: "Exercise name is required", variant: "destructive" });
+    if (!newExerciseName.trim()) {
+      toast({ title: "Please enter an exercise name", variant: "destructive" });
       return;
     }
 
     const newExercise: Exercise = {
-      name: currentExercise.name.trim(),
-      category: currentExercise.category.trim() || undefined,
+      name: newExerciseName.trim(),
+      category:
+        newExerciseCategory.trim() && newExerciseCategory !== "none"
+          ? newExerciseCategory.trim()
+          : undefined,
       sets: [{ setNumber: 1, reps: 10, weight: 0, isWarmup: false }],
     };
 
     setExercises([...exercises, newExercise]);
-    setCurrentExercise({ name: "", category: "" });
+    setNewExerciseName("");
+    setNewExerciseCategory("");
   };
 
-  const removeExercise = (exerciseIndex: number) => {
-    setExercises(exercises.filter((_, index) => index !== exerciseIndex));
+  const removeExercise = (index: number) => {
+    const updatedExercises = exercises.filter((_, i) => i !== index);
+    setExercises(updatedExercises);
   };
 
   const addSet = (exerciseIndex: number) => {
@@ -296,6 +304,31 @@ export function StrengthWorkoutForm({
 
               <FormField
                 control={form.control}
+                name="caloriesBurned"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Calories Burned (optional)</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        min="0"
+                        {...field}
+                        onChange={(e) =>
+                          field.onChange(
+                            e.target.value
+                              ? parseInt(e.target.value)
+                              : undefined
+                          )
+                        }
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
                 name="date"
                 render={({ field }) => (
                   <FormItem>
@@ -308,174 +341,6 @@ export function StrengthWorkoutForm({
                 )}
               />
             </div>
-
-            {/* Add Exercise Section */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Add Exercise</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <Input
-                    placeholder="Exercise name (e.g., Bench Press)"
-                    value={currentExercise.name}
-                    onChange={(e) =>
-                      setCurrentExercise({
-                        ...currentExercise,
-                        name: e.target.value,
-                      })
-                    }
-                  />
-                  <Input
-                    placeholder="Category (e.g., chest, legs)"
-                    value={currentExercise.category}
-                    onChange={(e) =>
-                      setCurrentExercise({
-                        ...currentExercise,
-                        category: e.target.value,
-                      })
-                    }
-                  />
-                  <Button
-                    type="button"
-                    onClick={addExercise}
-                    className="w-full"
-                  >
-                    <Plus className="w-4 h-4 mr-2" />
-                    Add Exercise
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Exercises List */}
-            {exercises.length > 0 && (
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold">
-                  Exercises ({exercises.length})
-                </h3>
-                {exercises.map((exercise, exerciseIndex) => (
-                  <Card key={exerciseIndex}>
-                    <CardHeader className="pb-3">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <CardTitle className="text-base">
-                            {exercise.name}
-                          </CardTitle>
-                          {exercise.category && (
-                            <Badge variant="secondary" className="mt-1">
-                              {exercise.category}
-                            </Badge>
-                          )}
-                        </div>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => removeExercise(exerciseIndex)}
-                        >
-                          <X className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-3">
-                        <div className="grid grid-cols-4 gap-2 text-sm font-medium text-muted-foreground">
-                          <div>Set</div>
-                          <div>Reps</div>
-                          <div>Weight (lbs)</div>
-                          <div>Actions</div>
-                        </div>
-
-                        {exercise.sets.map((set, setIndex) => (
-                          <div
-                            key={setIndex}
-                            className="grid grid-cols-4 gap-2 items-center"
-                          >
-                            <div className="text-sm font-medium">
-                              {set.isWarmup ? "W" : set.setNumber}
-                            </div>
-                            <Input
-                              type="number"
-                              min="1"
-                              value={set.reps}
-                              onChange={(e) =>
-                                updateSet(
-                                  exerciseIndex,
-                                  setIndex,
-                                  "reps",
-                                  parseInt(e.target.value) || 1
-                                )
-                              }
-                              className="h-8"
-                            />
-                            <Input
-                              type="number"
-                              min="0"
-                              step="0.5"
-                              value={set.weight || 0}
-                              onChange={(e) =>
-                                updateSet(
-                                  exerciseIndex,
-                                  setIndex,
-                                  "weight",
-                                  parseFloat(e.target.value) || 0
-                                )
-                              }
-                              className="h-8"
-                            />
-                            <div className="flex gap-1">
-                              <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                onClick={() =>
-                                  updateSet(
-                                    exerciseIndex,
-                                    setIndex,
-                                    "isWarmup",
-                                    !set.isWarmup
-                                  )
-                                }
-                                className={`h-8 text-xs ${
-                                  set.isWarmup ? "bg-yellow-100" : ""
-                                }`}
-                              >
-                                {set.isWarmup ? "W" : "W?"}
-                              </Button>
-                              {exercise.sets.length > 1 && (
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() =>
-                                    removeSet(exerciseIndex, setIndex)
-                                  }
-                                  className="h-8"
-                                >
-                                  <X className="w-3 h-3" />
-                                </Button>
-                              )}
-                            </div>
-                          </div>
-                        ))}
-
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => addSet(exerciseIndex)}
-                          className="w-full"
-                        >
-                          <Plus className="w-4 h-4 mr-1" />
-                          Add Set
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            )}
 
             <FormField
               control={form.control}
@@ -494,26 +359,206 @@ export function StrengthWorkoutForm({
               )}
             />
 
-            <div className="flex gap-3">
+            {/* Exercise Management */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold">Exercises</h3>
+
+              {/* Add New Exercise */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Add Exercise</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-sm font-medium">
+                        Exercise Name
+                      </label>
+                      <Input
+                        value={newExerciseName}
+                        onChange={(e) => setNewExerciseName(e.target.value)}
+                        placeholder="e.g., Bench Press, Squat"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium">
+                        Category (optional)
+                      </label>
+                      <Select
+                        value={newExerciseCategory}
+                        onValueChange={setNewExerciseCategory}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select category" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">No category</SelectItem>
+                          <SelectItem value="chest">Chest</SelectItem>
+                          <SelectItem value="back">Back</SelectItem>
+                          <SelectItem value="shoulders">Shoulders</SelectItem>
+                          <SelectItem value="arms">Arms</SelectItem>
+                          <SelectItem value="legs">Legs</SelectItem>
+                          <SelectItem value="core">Core</SelectItem>
+                          <SelectItem value="cardio">Cardio</SelectItem>
+                          <SelectItem value="other">Other</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <Button
+                    type="button"
+                    onClick={addExercise}
+                    className="w-full"
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add Exercise
+                  </Button>
+                </CardContent>
+              </Card>
+
+              {/* Exercise List */}
+              {exercises.map((exercise, exerciseIndex) => (
+                <Card key={exerciseIndex}>
+                  <CardHeader>
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <CardTitle className="text-base">
+                          {exercise.name}
+                        </CardTitle>
+                        {exercise.category && (
+                          <Badge variant="secondary" className="mt-1">
+                            {exercise.category}
+                          </Badge>
+                        )}
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeExercise(exerciseIndex)}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {/* Sets */}
+                    <div className="space-y-2">
+                      <div className="flex justify-between items-center">
+                        <h4 className="font-medium">Sets</h4>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => addSet(exerciseIndex)}
+                        >
+                          <Plus className="w-4 h-4 mr-1" />
+                          Add Set
+                        </Button>
+                      </div>
+
+                      {exercise.sets.map((set, setIndex) => (
+                        <div
+                          key={setIndex}
+                          className="flex items-center space-x-2"
+                        >
+                          <span className="text-sm font-medium w-8">
+                            #{set.setNumber}
+                          </span>
+                          <div className="flex-1 grid grid-cols-2 gap-2">
+                            <div>
+                              <label className="text-xs text-gray-600">
+                                Reps
+                              </label>
+                              <Input
+                                type="number"
+                                min="1"
+                                value={set.reps}
+                                onChange={(e) =>
+                                  updateSet(
+                                    exerciseIndex,
+                                    setIndex,
+                                    "reps",
+                                    parseInt(e.target.value) || 1
+                                  )
+                                }
+                                className="h-8"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-xs text-gray-600">
+                                Weight (lbs)
+                              </label>
+                              <Input
+                                type="number"
+                                min="0"
+                                step="0.5"
+                                value={set.weight || 0}
+                                onChange={(e) =>
+                                  updateSet(
+                                    exerciseIndex,
+                                    setIndex,
+                                    "weight",
+                                    parseFloat(e.target.value) || 0
+                                  )
+                                }
+                                className="h-8"
+                              />
+                            </div>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <label className="text-xs text-gray-600">
+                              Warmup
+                            </label>
+                            <input
+                              type="checkbox"
+                              checked={set.isWarmup || false}
+                              onChange={(e) =>
+                                updateSet(
+                                  exerciseIndex,
+                                  setIndex,
+                                  "isWarmup",
+                                  e.target.checked
+                                )
+                              }
+                              className="h-4 w-4"
+                            />
+                          </div>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removeSet(exerciseIndex, setIndex)}
+                          >
+                            <X className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+
+            <div className="flex justify-end space-x-3">
               <Button
                 type="button"
                 variant="outline"
                 onClick={() => onOpenChange(false)}
-                className="flex-1"
               >
                 Cancel
               </Button>
               <Button
                 type="submit"
                 disabled={createMutation.isPending || updateMutation.isPending}
-                className="flex-1"
+                className="bg-blue-600 hover:bg-blue-700"
               >
-                {workout
-                  ? updateMutation.isPending
+                {createMutation.isPending || updateMutation.isPending
+                  ? workout
                     ? "Updating..."
-                    : "Update Workout"
-                  : createMutation.isPending
-                  ? "Logging..."
+                    : "Logging..."
+                  : workout
+                  ? "Update Workout"
                   : "Log Workout"}
               </Button>
             </div>
