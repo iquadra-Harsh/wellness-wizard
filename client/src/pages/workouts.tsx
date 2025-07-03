@@ -4,23 +4,43 @@ import { apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { WorkoutForm } from "@/components/workout-form";
+import { StrengthWorkoutForm } from "@/components/strength-workout-form";
+import { CardioWorkoutForm } from "@/components/cardio-workout-form";
 import { useToast } from "@/hooks/use-toast";
-import { Dumbbell, Plus, Edit2, Trash2, Calendar, Clock, Flame } from "lucide-react";
+import {
+  Dumbbell,
+  Plus,
+  Heart,
+  Edit2,
+  Trash2,
+  Calendar,
+  Clock,
+  Flame,
+  Target,
+} from "lucide-react";
 import { format } from "date-fns";
-import { Workout } from "@shared/schema";
+import { Workout, Exercise, Set } from "@shared/schema";
+
+type WorkoutWithExercises = Workout & {
+  exercises?: (Exercise & { sets: Set[] })[];
+};
 
 export default function Workouts() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [workoutFormOpen, setWorkoutFormOpen] = useState(false);
-  const [editingWorkout, setEditingWorkout] = useState<Workout | undefined>();
+  const [strengthFormOpen, setStrengthFormOpen] = useState(false);
+  const [cardioFormOpen, setCardioFormOpen] = useState(false);
+  const [editingWorkout, setEditingWorkout] = useState<
+    WorkoutWithExercises | undefined
+  >();
 
-  const { data: workouts = [], isLoading } = useQuery({
+  const { data: workouts = [], isLoading } = useQuery<WorkoutWithExercises[]>({
     queryKey: ["/api/workouts"],
     queryFn: async () => {
       const response = await fetch("/api/workouts", {
-        headers: { Authorization: `Bearer ${localStorage.getItem('fittracker_token')}` },
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("fittracker_token")}`,
+        },
       });
       return response.json();
     },
@@ -30,7 +50,9 @@ export default function Workouts() {
     queryKey: ["/api/workouts/stats"],
     queryFn: async () => {
       const response = await fetch("/api/workouts/stats?days=7", {
-        headers: { Authorization: `Bearer ${localStorage.getItem('fittracker_token')}` },
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("fittracker_token")}`,
+        },
       });
       return response.json();
     },
@@ -46,13 +68,21 @@ export default function Workouts() {
       toast({ title: "Workout deleted successfully" });
     },
     onError: (error: any) => {
-      toast({ title: "Failed to delete workout", description: error.message, variant: "destructive" });
+      toast({
+        title: "Failed to delete workout",
+        description: error.message,
+        variant: "destructive",
+      });
     },
   });
 
-  const handleEdit = (workout: Workout) => {
+  const handleEdit = (workout: WorkoutWithExercises) => {
     setEditingWorkout(workout);
-    setWorkoutFormOpen(true);
+    if (workout.workoutType === "strength") {
+      setStrengthFormOpen(true);
+    } else {
+      setCardioFormOpen(true);
+    }
   };
 
   const handleDelete = (id: number) => {
@@ -61,50 +91,45 @@ export default function Workouts() {
     }
   };
 
-  const handleFormClose = () => {
-    setWorkoutFormOpen(false);
-    setEditingWorkout(undefined);
-  };
-
   const getWorkoutIcon = (type: string) => {
     switch (type.toLowerCase()) {
-      case 'cardio':
-      case 'running':
-      case 'cycling':
-        return '🏃‍♂️';
-      case 'strength training':
-      case 'weightlifting':
-        return '🏋️‍♂️';
-      case 'yoga':
-      case 'flexibility':
-        return '🧘‍♀️';
-      case 'swimming':
-        return '🏊‍♂️';
-      case 'sports':
-        return '⚽';
+      case "cardio":
+      case "running":
+      case "cycling":
+        return "🏃‍♂️";
+      case "strength training":
+      case "weightlifting":
+        return "🏋️‍♂️";
+      case "yoga":
+      case "flexibility":
+        return "🧘‍♀️";
+      case "swimming":
+        return "🏊‍♂️";
+      case "sports":
+        return "⚽";
       default:
-        return '💪';
+        return "💪";
     }
   };
 
   const getWorkoutBadgeColor = (type: string) => {
     switch (type.toLowerCase()) {
-      case 'cardio':
-      case 'running':
-      case 'cycling':
-        return 'bg-red-100 text-red-800';
-      case 'strength training':
-      case 'weightlifting':
-        return 'bg-blue-100 text-blue-800';
-      case 'yoga':
-      case 'flexibility':
-        return 'bg-green-100 text-green-800';
-      case 'swimming':
-        return 'bg-cyan-100 text-cyan-800';
-      case 'sports':
-        return 'bg-purple-100 text-purple-800';
+      case "cardio":
+      case "running":
+      case "cycling":
+        return "bg-red-100 text-red-800";
+      case "strength training":
+      case "weightlifting":
+        return "bg-blue-100 text-blue-800";
+      case "yoga":
+      case "flexibility":
+        return "bg-green-100 text-green-800";
+      case "swimming":
+        return "bg-cyan-100 text-cyan-800";
+      case "sports":
+        return "bg-purple-100 text-purple-800";
       default:
-        return 'bg-gray-100 text-gray-800';
+        return "bg-gray-100 text-gray-800";
     }
   };
 
@@ -115,7 +140,7 @@ export default function Workouts() {
           <h2 className="text-2xl font-bold text-gray-900">Workouts</h2>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {[1, 2, 3].map(i => (
+          {[1, 2, 3].map((i) => (
             <Card key={i}>
               <CardContent className="p-6">
                 <div className="animate-pulse">
@@ -134,10 +159,22 @@ export default function Workouts() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold text-gray-900">Workouts</h2>
-        <Button onClick={() => setWorkoutFormOpen(true)} className="bg-primary hover:bg-blue-600">
-          <Plus className="mr-2" size={16} />
-          Log Workout
-        </Button>
+        <div className="flex gap-3">
+          <Button
+            onClick={() => setStrengthFormOpen(true)}
+            className="bg-blue-600 hover:bg-blue-700"
+          >
+            <Dumbbell className="mr-2" size={16} />
+            Log Strength Training
+          </Button>
+          <Button
+            onClick={() => setCardioFormOpen(true)}
+            className="bg-red-600 hover:bg-red-700"
+          >
+            <Heart className="mr-2" size={16} />
+            Log Cardio
+          </Button>
+        </div>
       </div>
 
       {/* Workout Stats */}
@@ -185,17 +222,36 @@ export default function Workouts() {
               <div className="text-gray-400 mb-4">
                 <Dumbbell size={48} className="mx-auto" />
               </div>
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No workouts yet</h3>
-              <p className="text-gray-500 mb-4">Start tracking your fitness journey!</p>
-              <Button onClick={() => setWorkoutFormOpen(true)} className="bg-primary hover:bg-blue-600">
-                <Plus className="mr-2" size={16} />
-                Log Your First Workout
-              </Button>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">
+                No workouts yet
+              </h3>
+              <p className="text-gray-500 mb-4">
+                Start tracking your fitness journey!
+              </p>
+              <div className="flex gap-3 justify-center">
+                <Button
+                  onClick={() => setStrengthFormOpen(true)}
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  <Dumbbell className="mr-2" size={16} />
+                  Strength Training
+                </Button>
+                <Button
+                  onClick={() => setCardioFormOpen(true)}
+                  className="bg-red-600 hover:bg-red-700"
+                >
+                  <Heart className="mr-2" size={16} />
+                  Cardio
+                </Button>
+              </div>
             </div>
           ) : (
             <div className="space-y-4">
-              {workouts.map((workout: Workout) => (
-                <div key={workout.id} className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+              {workouts.map((workout: WorkoutWithExercises) => (
+                <div
+                  key={workout.id}
+                  className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-4">
                       <div className="text-2xl">
@@ -203,7 +259,9 @@ export default function Workouts() {
                       </div>
                       <div className="flex-1">
                         <div className="flex items-center space-x-2 mb-2">
-                          <h4 className="font-medium text-gray-900">{workout.type}</h4>
+                          <h4 className="font-medium text-gray-900">
+                            {workout.type}
+                          </h4>
                           <Badge className={getWorkoutBadgeColor(workout.type)}>
                             {workout.type}
                           </Badge>
@@ -213,6 +271,12 @@ export default function Workouts() {
                             <Clock className="mr-1" size={14} />
                             {workout.duration} minutes
                           </div>
+                          {workout.distance && (
+                            <div className="flex items-center">
+                              <Target className="mr-1" size={14} />
+                              {workout.distance} miles
+                            </div>
+                          )}
                           {workout.caloriesBurned && (
                             <div className="flex items-center">
                               <Flame className="mr-1" size={14} />
@@ -221,11 +285,60 @@ export default function Workouts() {
                           )}
                           <div className="flex items-center">
                             <Calendar className="mr-1" size={14} />
-                            {format(new Date(workout.date), 'MMM d, yyyy h:mm a')}
+                            {format(
+                              new Date(workout.date),
+                              "MMM d, yyyy h:mm a"
+                            )}
                           </div>
                         </div>
+
+                        {/* Show exercises for strength workouts */}
+                        {workout.workoutType === "strength" &&
+                          (workout as any).exercises &&
+                          (workout as any).exercises.length > 0 && (
+                            <div className="mt-3 space-y-2">
+                              <h5 className="text-sm font-medium text-gray-700">
+                                Exercises:
+                              </h5>
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                {(workout as any).exercises.map(
+                                  (exercise: any, index: number) => (
+                                    <div
+                                      key={exercise.id || index}
+                                      className="text-sm bg-gray-50 rounded p-2"
+                                    >
+                                      <div className="font-medium text-gray-800">
+                                        {exercise.name}
+                                      </div>
+                                      <div className="text-gray-600">
+                                        {exercise.sets?.length || 0} sets
+                                        {exercise.sets &&
+                                          exercise.sets.length > 0 && (
+                                            <span className="ml-2">
+                                              (
+                                              {exercise.sets
+                                                .map(
+                                                  (set: any) =>
+                                                    `${set.reps}x${
+                                                      set.weight || 0
+                                                    }lbs`
+                                                )
+                                                .join(", ")}
+                                              )
+                                            </span>
+                                          )}
+                                      </div>
+                                    </div>
+                                  )
+                                )}
+                              </div>
+                            </div>
+                          )}
+
                         {workout.notes && (
-                          <p className="text-sm text-gray-600 mt-2">{workout.notes}</p>
+                          <p className="text-sm text-gray-600 mt-2">
+                            {workout.notes}
+                          </p>
                         )}
                       </div>
                     </div>
@@ -255,10 +368,28 @@ export default function Workouts() {
         </CardContent>
       </Card>
 
-      <WorkoutForm
-        open={workoutFormOpen}
-        onOpenChange={handleFormClose}
-        workout={editingWorkout}
+      <StrengthWorkoutForm
+        open={strengthFormOpen}
+        onOpenChange={(open) => {
+          setStrengthFormOpen(open);
+          if (!open) setEditingWorkout(undefined);
+        }}
+        workout={
+          editingWorkout?.workoutType === "strength"
+            ? editingWorkout
+            : undefined
+        }
+      />
+
+      <CardioWorkoutForm
+        open={cardioFormOpen}
+        onOpenChange={(open) => {
+          setCardioFormOpen(open);
+          if (!open) setEditingWorkout(undefined);
+        }}
+        workout={
+          editingWorkout?.workoutType === "cardio" ? editingWorkout : undefined
+        }
       />
     </div>
   );

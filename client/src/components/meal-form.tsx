@@ -1,14 +1,32 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { Meal } from "@shared/schema";
@@ -40,22 +58,54 @@ export function MealForm({ open, onOpenChange, meal }: MealFormProps) {
   const form = useForm<MealFormData>({
     resolver: zodResolver(mealFormSchema),
     defaultValues: {
-      type: meal?.type || "",
-      foodItems: meal?.foodItems || "",
-      calories: meal?.calories || 0,
-      protein: meal?.protein ? parseFloat(meal.protein) : undefined,
-      carbs: meal?.carbs ? parseFloat(meal.carbs) : undefined,
-      fat: meal?.fat ? parseFloat(meal.fat) : undefined,
-      notes: meal?.notes || "",
-      date: meal?.date ? new Date(meal.date).toISOString().slice(0, 16) : new Date().toISOString().slice(0, 16),
+      type: "",
+      foodItems: "",
+      calories: 0,
+      protein: undefined,
+      carbs: undefined,
+      fat: undefined,
+      notes: "",
+      date: new Date().toISOString().slice(0, 16),
     },
   });
+
+  // Reset form when meal prop changes
+  useEffect(() => {
+    if (meal && open) {
+      form.reset({
+        type: meal.type || "",
+        foodItems: meal.foodItems || "",
+        calories: meal.calories || 0,
+        protein: meal.protein ? parseFloat(meal.protein) : undefined,
+        carbs: meal.carbs ? parseFloat(meal.carbs) : undefined,
+        fat: meal.fat ? parseFloat(meal.fat) : undefined,
+        notes: meal.notes || "",
+        date: meal.date
+          ? new Date(meal.date).toISOString().slice(0, 16)
+          : new Date().toISOString().slice(0, 16),
+      });
+    } else if (!meal && open) {
+      form.reset({
+        type: "",
+        foodItems: "",
+        calories: 0,
+        protein: undefined,
+        carbs: undefined,
+        fat: undefined,
+        notes: "",
+        date: new Date().toISOString().slice(0, 16),
+      });
+    }
+  }, [meal, open, form]);
 
   const createMutation = useMutation({
     mutationFn: async (data: MealFormData) => {
       const response = await apiRequest("POST", "/api/meals", {
         ...data,
-        date: data.date ? new Date(data.date) : new Date(),
+        protein: data.protein ? data.protein.toString() : undefined,
+        carbs: data.carbs ? data.carbs.toString() : undefined,
+        fat: data.fat ? data.fat.toString() : undefined,
+        date: data.date || new Date().toISOString().slice(0, 16),
       });
       return response.json();
     },
@@ -67,7 +117,11 @@ export function MealForm({ open, onOpenChange, meal }: MealFormProps) {
       form.reset();
     },
     onError: (error: any) => {
-      toast({ title: "Failed to log meal", description: error.message, variant: "destructive" });
+      toast({
+        title: "Failed to log meal",
+        description: error.message,
+        variant: "destructive",
+      });
     },
   });
 
@@ -75,7 +129,10 @@ export function MealForm({ open, onOpenChange, meal }: MealFormProps) {
     mutationFn: async (data: MealFormData) => {
       const response = await apiRequest("PUT", `/api/meals/${meal!.id}`, {
         ...data,
-        date: data.date ? new Date(data.date) : undefined,
+        protein: data.protein ? data.protein.toString() : undefined,
+        carbs: data.carbs ? data.carbs.toString() : undefined,
+        fat: data.fat ? data.fat.toString() : undefined,
+        date: data.date || undefined,
       });
       return response.json();
     },
@@ -86,7 +143,11 @@ export function MealForm({ open, onOpenChange, meal }: MealFormProps) {
       onOpenChange(false);
     },
     onError: (error: any) => {
-      toast({ title: "Failed to update meal", description: error.message, variant: "destructive" });
+      toast({
+        title: "Failed to update meal",
+        description: error.message,
+        variant: "destructive",
+      });
     },
   });
 
@@ -119,7 +180,10 @@ export function MealForm({ open, onOpenChange, meal }: MealFormProps) {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Meal Type</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <Select
+                    onValueChange={field.onChange}
+                    defaultValue={field.value}
+                  >
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="Select meal type" />
@@ -137,7 +201,7 @@ export function MealForm({ open, onOpenChange, meal }: MealFormProps) {
                 </FormItem>
               )}
             />
-            
+
             <FormField
               control={form.control}
               name="foodItems"
@@ -145,7 +209,7 @@ export function MealForm({ open, onOpenChange, meal }: MealFormProps) {
                 <FormItem>
                   <FormLabel>Food Items</FormLabel>
                   <FormControl>
-                    <Textarea 
+                    <Textarea
                       placeholder="List the foods you ate..."
                       className="resize-none"
                       {...field}
@@ -155,7 +219,7 @@ export function MealForm({ open, onOpenChange, meal }: MealFormProps) {
                 </FormItem>
               )}
             />
-            
+
             <FormField
               control={form.control}
               name="calories"
@@ -163,18 +227,20 @@ export function MealForm({ open, onOpenChange, meal }: MealFormProps) {
                 <FormItem>
                   <FormLabel>Total Calories</FormLabel>
                   <FormControl>
-                    <Input 
-                      type="number" 
+                    <Input
+                      type="number"
                       placeholder="420"
                       {...field}
-                      onChange={e => field.onChange(parseInt(e.target.value) || 0)}
+                      onChange={(e) =>
+                        field.onChange(parseInt(e.target.value) || 0)
+                      }
                     />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
-            
+
             <div className="grid grid-cols-3 gap-4">
               <FormField
                 control={form.control}
@@ -183,19 +249,25 @@ export function MealForm({ open, onOpenChange, meal }: MealFormProps) {
                   <FormItem>
                     <FormLabel>Protein (g)</FormLabel>
                     <FormControl>
-                      <Input 
-                        type="number" 
+                      <Input
+                        type="number"
                         step="0.1"
                         placeholder="25"
                         {...field}
-                        onChange={e => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
+                        onChange={(e) =>
+                          field.onChange(
+                            e.target.value
+                              ? parseFloat(e.target.value)
+                              : undefined
+                          )
+                        }
                       />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-              
+
               <FormField
                 control={form.control}
                 name="carbs"
@@ -203,19 +275,25 @@ export function MealForm({ open, onOpenChange, meal }: MealFormProps) {
                   <FormItem>
                     <FormLabel>Carbs (g)</FormLabel>
                     <FormControl>
-                      <Input 
-                        type="number" 
+                      <Input
+                        type="number"
                         step="0.1"
                         placeholder="45"
                         {...field}
-                        onChange={e => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
+                        onChange={(e) =>
+                          field.onChange(
+                            e.target.value
+                              ? parseFloat(e.target.value)
+                              : undefined
+                          )
+                        }
                       />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-              
+
               <FormField
                 control={form.control}
                 name="fat"
@@ -223,12 +301,18 @@ export function MealForm({ open, onOpenChange, meal }: MealFormProps) {
                   <FormItem>
                     <FormLabel>Fat (g)</FormLabel>
                     <FormControl>
-                      <Input 
-                        type="number" 
+                      <Input
+                        type="number"
                         step="0.1"
                         placeholder="15"
                         {...field}
-                        onChange={e => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
+                        onChange={(e) =>
+                          field.onChange(
+                            e.target.value
+                              ? parseFloat(e.target.value)
+                              : undefined
+                          )
+                        }
                       />
                     </FormControl>
                     <FormMessage />
@@ -236,7 +320,7 @@ export function MealForm({ open, onOpenChange, meal }: MealFormProps) {
                 )}
               />
             </div>
-            
+
             <FormField
               control={form.control}
               name="date"
@@ -250,7 +334,7 @@ export function MealForm({ open, onOpenChange, meal }: MealFormProps) {
                 </FormItem>
               )}
             />
-            
+
             <FormField
               control={form.control}
               name="notes"
@@ -258,7 +342,7 @@ export function MealForm({ open, onOpenChange, meal }: MealFormProps) {
                 <FormItem>
                   <FormLabel>Notes (optional)</FormLabel>
                   <FormControl>
-                    <Textarea 
+                    <Textarea
                       placeholder="How did you feel after eating?"
                       className="resize-none"
                       {...field}
@@ -268,14 +352,22 @@ export function MealForm({ open, onOpenChange, meal }: MealFormProps) {
                 </FormItem>
               )}
             />
-            
+
             <div className="flex space-x-3 pt-4">
-              <Button type="submit" disabled={isSubmitting} className="flex-1 bg-secondary hover:bg-emerald-600">
-                {isSubmitting ? "Saving..." : meal ? "Update Meal" : "Save Meal"}
+              <Button
+                type="submit"
+                disabled={isSubmitting}
+                className="flex-1 bg-secondary hover:bg-emerald-600"
+              >
+                {isSubmitting
+                  ? "Saving..."
+                  : meal
+                  ? "Update Meal"
+                  : "Save Meal"}
               </Button>
-              <Button 
-                type="button" 
-                variant="outline" 
+              <Button
+                type="button"
+                variant="outline"
                 onClick={() => onOpenChange(false)}
                 className="flex-1"
               >
