@@ -5,10 +5,17 @@ import {
   insights,
   workoutPlans,
   workoutPlanDays,
+  exercises,
+  sets,
+  userGoals,
   type User,
   type InsertUser,
   type Workout,
   type InsertWorkout,
+  type Exercise,
+  type InsertExercise,
+  type Set,
+  type InsertSet,
   type Meal,
   type InsertMeal,
   type Insight,
@@ -17,6 +24,8 @@ import {
   type InsertWorkoutPlan,
   type WorkoutPlanDay,
   type InsertWorkoutPlanDay,
+  type UserGoals,
+  type InsertUserGoals,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, gte, sql } from "drizzle-orm";
@@ -29,14 +38,28 @@ export interface IStorage {
   createUser(user: InsertUser): Promise<User>;
 
   // Workout methods
-  getWorkouts(userId: number, limit?: number): Promise<Workout[]>;
-  getWorkout(id: number, userId: number): Promise<Workout | undefined>;
-  createWorkout(workout: InsertWorkout & { userId: number }): Promise<Workout>;
+  getWorkouts(
+    userId: number,
+    limit?: number
+  ): Promise<(Workout & { exercises?: (Exercise & { sets: Set[] })[] })[]>;
+  getWorkout(
+    id: number,
+    userId: number
+  ): Promise<
+    (Workout & { exercises?: (Exercise & { sets: Set[] })[] }) | undefined
+  >;
+  createWorkout(
+    workout: InsertWorkout & { userId: number },
+    exerciseData?: any
+  ): Promise<Workout & { exercises?: (Exercise & { sets: Set[] })[] }>;
   updateWorkout(
     id: number,
     userId: number,
-    workout: Partial<InsertWorkout>
-  ): Promise<Workout | undefined>;
+    workout: Partial<InsertWorkout>,
+    exerciseData?: any
+  ): Promise<
+    (Workout & { exercises?: (Exercise & { sets: Set[] })[] }) | undefined
+  >;
   deleteWorkout(id: number, userId: number): Promise<boolean>;
   getWorkoutStats(
     userId: number,
@@ -92,6 +115,16 @@ export interface IStorage {
   deleteWorkoutPlan(id: number, userId: number): Promise<boolean>;
   getNextWorkoutDay(userId: number): Promise<WorkoutPlanDay | undefined>;
   advanceWorkoutPlan(userId: number, planId: number): Promise<void>;
+
+  // User Goals methods
+  getUserGoals(userId: number): Promise<UserGoals | undefined>;
+  createUserGoals(
+    goals: InsertUserGoals & { userId: number }
+  ): Promise<UserGoals>;
+  updateUserGoals(
+    userId: number,
+    goals: Partial<InsertUserGoals>
+  ): Promise<UserGoals | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -120,41 +153,201 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Workout methods
-  async getWorkouts(userId: number, limit: number = 50): Promise<Workout[]> {
-    return await db
+  async getWorkouts(
+    userId: number,
+    limit: number = 50
+  ): Promise<(Workout & { exercises?: (Exercise & { sets: Set[] })[] })[]> {
+    const workoutList = await db
       .select()
       .from(workouts)
       .where(eq(workouts.userId, userId))
       .orderBy(desc(workouts.date))
       .limit(limit);
+
+    const workoutsWithExercises = await Promise.all(
+      workoutList.map(async (workout) => {
+        if (workout.workoutType === "strength") {
+          const exerciseList = await db
+            .select()
+            .from(exercises)
+            .where(eq(exercises.workoutId, workout.id));
+
+          const exercisesWithSets = await Promise.all(
+            exerciseList.map(async (exercise) => {
+              const setList = await db
+                .select()
+                .from(sets)
+                .where(eq(sets.exerciseId, exercise.id))
+                .orderBy(sets.setNumber);
+              return { ...exercise, sets: setList };
+            })
+          );
+
+          return { ...workout, exercises: exercisesWithSets };
+        }
+        return workout;
+      })
+    );
+
+    return workoutsWithExercises;
   }
 
-  async getWorkout(id: number, userId: number): Promise<Workout | undefined> {
+  async getWorkout(
+    id: number,
+    userId: number
+  ): Promise<
+    (Workout & { exercises?: (Exercise & { sets: Set[] })[] }) | undefined
+  > {
     const [workout] = await db
       .select()
       .from(workouts)
       .where(and(eq(workouts.id, id), eq(workouts.userId, userId)));
-    return workout || undefined;
+
+    if (!workout) return undefined;
+
+    if (workout.workoutType === "strength") {
+      const exerciseList = await db
+        .select()
+        .from(exercises)
+        .where(eq(exercises.workoutId, workout.id));
+
+      const exercisesWithSets = await Promise.all(
+        exerciseList.map(async (exercise) => {
+          const setList = await db
+            .select()
+            .from(sets)
+            .where(eq(sets.exerciseId, exercise.id))
+            .orderBy(sets.setNumber);
+          return { ...exercise, sets: setList };
+        })
+      );
+
+      return { ...workout, exercises: exercisesWithSets };
+    }
+
+    return workout;
   }
 
   async createWorkout(
-    workout: InsertWorkout & { userId: number }
-  ): Promise<Workout> {
+    workout: InsertWorkout & { userId: number },
+    exerciseData?: any
+  ): Promise<Workout & { exercises?: (Exercise & { sets: Set[] })[] }> {
     const [newWorkout] = await db.insert(workouts).values(workout).returning();
+
+    if (workout.workoutType === "strength" && exerciseData) {
+      const exercisesWithSets: (Exercise & { sets: Set[] })[] = [];
+
+      for (const exerciseInput of exerciseData) {
+        const [newExercise] = await db
+          .insert(exercises)
+          .values({
+            name: exerciseInput.name,
+            category: exerciseInput.category || null,
+            notes: null,
+            workoutId: newWorkout.id,
+          })
+          .returning();
+
+        const createdSets: Set[] = [];
+
+        for (const setData of exerciseInput.sets) {
+          const [newSet] = await db
+            .insert(sets)
+            .values({
+              exerciseId: newExercise.id,
+              setNumber: setData.setNumber,
+              reps: setData.reps,
+              weight: setData.weight?.toString() || null,
+              isWarmup: setData.isWarmup || false,
+              restTime: null,
+              rpe: null,
+            })
+            .returning();
+          createdSets.push(newSet);
+        }
+
+        exercisesWithSets.push({ ...newExercise, sets: createdSets });
+      }
+
+      return { ...newWorkout, exercises: exercisesWithSets };
+    }
+
     return newWorkout;
   }
 
   async updateWorkout(
     id: number,
     userId: number,
-    workout: Partial<InsertWorkout>
-  ): Promise<Workout | undefined> {
+    workout: Partial<InsertWorkout>,
+    exerciseData?: any
+  ): Promise<
+    (Workout & { exercises?: (Exercise & { sets: Set[] })[] }) | undefined
+  > {
     const [updatedWorkout] = await db
       .update(workouts)
       .set(workout)
       .where(and(eq(workouts.id, id), eq(workouts.userId, userId)))
       .returning();
-    return updatedWorkout || undefined;
+
+    if (!updatedWorkout) {
+      return undefined;
+    }
+
+    // If updating exercises for strength workout
+    if (workout.workoutType === "strength" && exerciseData) {
+      // Get existing exercises for this workout
+      const existingExercises = await db
+        .select({ id: exercises.id })
+        .from(exercises)
+        .where(eq(exercises.workoutId, id));
+
+      // Delete existing sets for these exercises
+      for (const exercise of existingExercises) {
+        await db.delete(sets).where(eq(sets.exerciseId, exercise.id));
+      }
+
+      // Delete existing exercises for this workout
+      await db.delete(exercises).where(eq(exercises.workoutId, id));
+
+      // Create new exercises and sets
+      const exercisesWithSets: (Exercise & { sets: Set[] })[] = [];
+
+      for (const exerciseInput of exerciseData) {
+        const [newExercise] = await db
+          .insert(exercises)
+          .values({
+            name: exerciseInput.name,
+            category: exerciseInput.category || null,
+            notes: null,
+            workoutId: updatedWorkout.id,
+          })
+          .returning();
+
+        const createdSets: Set[] = [];
+
+        for (const setData of exerciseInput.sets) {
+          const [newSet] = await db
+            .insert(sets)
+            .values({
+              exerciseId: newExercise.id,
+              setNumber: setData.setNumber,
+              reps: setData.reps,
+              weight: setData.weight?.toString() || null,
+              isWarmup: setData.isWarmup || false,
+              restTime: null,
+              rpe: null,
+            })
+            .returning();
+          createdSets.push(newSet);
+        }
+
+        exercisesWithSets.push({ ...newExercise, sets: createdSets });
+      }
+
+      return { ...updatedWorkout, exercises: exercisesWithSets };
+    }
+
+    return updatedWorkout;
   }
 
   async deleteWorkout(id: number, userId: number): Promise<boolean> {
@@ -432,6 +625,34 @@ export class DatabaseStorage implements IStorage {
         lastWorkoutDate: new Date(),
       })
       .where(eq(workoutPlans.id, planId));
+  }
+
+  // User Goals methods
+  async getUserGoals(userId: number): Promise<UserGoals | undefined> {
+    const [goals] = await db
+      .select()
+      .from(userGoals)
+      .where(eq(userGoals.userId, userId));
+    return goals || undefined;
+  }
+
+  async createUserGoals(
+    goals: InsertUserGoals & { userId: number }
+  ): Promise<UserGoals> {
+    const [newGoals] = await db.insert(userGoals).values(goals).returning();
+    return newGoals;
+  }
+
+  async updateUserGoals(
+    userId: number,
+    goals: Partial<InsertUserGoals>
+  ): Promise<UserGoals | undefined> {
+    const [updatedGoals] = await db
+      .update(userGoals)
+      .set({ ...goals, updatedAt: new Date() })
+      .where(eq(userGoals.userId, userId))
+      .returning();
+    return updatedGoals;
   }
 }
 
