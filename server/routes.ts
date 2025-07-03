@@ -13,6 +13,7 @@ import {
   loginUserSchema,
   insertWorkoutSchema,
   insertMealSchema,
+  insertWorkoutPlanSchema,
 } from "@shared/schema";
 import { generateInsights } from "./openai";
 
@@ -354,6 +355,134 @@ export async function registerRoutes(app: Express): Promise<Server> {
         res
           .status(500)
           .json({ message: error.message || "Failed to mark insight as read" });
+      }
+    }
+  );
+
+  // Workout Plan routes
+  app.get(
+    "/api/workout-plans",
+    authenticateToken,
+    async (req: AuthRequest, res) => {
+      try {
+        const plans = await storage.getWorkoutPlans(req.userId!);
+        res.json(plans);
+      } catch (error: any) {
+        res
+          .status(500)
+          .json({ message: error.message || "Failed to get workout plans" });
+      }
+    }
+  );
+
+  app.get(
+    "/api/workout-plans/active",
+    authenticateToken,
+    async (req: AuthRequest, res) => {
+      try {
+        const activePlan = await storage.getActiveWorkoutPlan(req.userId!);
+        res.json(activePlan);
+      } catch (error: any) {
+        res
+          .status(500)
+          .json({
+            message: error.message || "Failed to get active workout plan",
+          });
+      }
+    }
+  );
+
+  app.get(
+    "/api/workout-plans/next-day",
+    authenticateToken,
+    async (req: AuthRequest, res) => {
+      try {
+        const nextDay = await storage.getNextWorkoutDay(req.userId!);
+        res.json(nextDay);
+      } catch (error: any) {
+        res
+          .status(500)
+          .json({ message: error.message || "Failed to get next workout day" });
+      }
+    }
+  );
+
+  app.post(
+    "/api/workout-plans",
+    authenticateToken,
+    async (req: AuthRequest, res) => {
+      try {
+        const { plan, days } = req.body;
+        const planData = insertWorkoutPlanSchema.parse(plan);
+
+        const newPlan = await storage.createWorkoutPlan(
+          { ...planData, userId: req.userId! },
+          days
+        );
+        res.json(newPlan);
+      } catch (error: any) {
+        res
+          .status(400)
+          .json({ message: error.message || "Failed to create workout plan" });
+      }
+    }
+  );
+
+  app.put(
+    "/api/workout-plans/:id",
+    authenticateToken,
+    async (req: AuthRequest, res) => {
+      try {
+        const id = parseInt(req.params.id);
+        const planData = insertWorkoutPlanSchema.partial().parse(req.body);
+
+        const plan = await storage.updateWorkoutPlan(id, req.userId!, planData);
+        if (!plan) {
+          return res.status(404).json({ message: "Workout plan not found" });
+        }
+
+        res.json(plan);
+      } catch (error: any) {
+        res
+          .status(400)
+          .json({ message: error.message || "Failed to update workout plan" });
+      }
+    }
+  );
+
+  app.delete(
+    "/api/workout-plans/:id",
+    authenticateToken,
+    async (req: AuthRequest, res) => {
+      try {
+        const id = parseInt(req.params.id);
+        const success = await storage.deleteWorkoutPlan(id, req.userId!);
+
+        if (!success) {
+          return res.status(404).json({ message: "Workout plan not found" });
+        }
+
+        res.json({ message: "Workout plan deleted successfully" });
+      } catch (error: any) {
+        res
+          .status(500)
+          .json({ message: error.message || "Failed to delete workout plan" });
+      }
+    }
+  );
+
+  app.post(
+    "/api/workout-plans/:id/advance",
+    authenticateToken,
+    async (req: AuthRequest, res) => {
+      try {
+        const id = parseInt(req.params.id);
+        await storage.advanceWorkoutPlan(req.userId!, id);
+        res.json({ message: "Workout plan advanced successfully" });
+      } catch (error: any) {
+        res
+          .status(500)
+          .json({ message: error.message || "Failed to advance workout plan" });
       }
     }
   );
