@@ -1,9 +1,12 @@
 import OpenAI from "openai";
 import { Workout, Meal } from "@shared/schema";
 
-// the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
-const openai = new OpenAI({ 
-  apiKey: process.env.OPENAI_API_KEY || process.env.OPENAI_API_KEY_ENV_VAR || "default_key" 
+// the newest OpenAI model is "gpt-41" which was released May 13, 2024. do not change this unless explicitly requested by the user
+const openai = new OpenAI({
+  apiKey:
+    process.env.OPENAI_API_KEY ||
+    process.env.OPENAI_API_KEY_ENV_VAR ||
+    "default_key",
 });
 
 interface InsightData {
@@ -23,12 +26,14 @@ interface InsightData {
   };
 }
 
-export async function generateInsights(data: InsightData): Promise<Array<{
-  type: string;
-  title: string;
-  content: string;
-  data?: any;
-}>> {
+export async function generateInsights(data: InsightData): Promise<
+  Array<{
+    type: string;
+    title: string;
+    content: string;
+    data?: any;
+  }>
+> {
   try {
     const prompt = `
     Analyze the following fitness and nutrition data and provide personalized insights and recommendations.
@@ -38,26 +43,30 @@ export async function generateInsights(data: InsightData): Promise<Array<{
     - Total minutes exercised: ${data.workoutStats.totalMinutes}
     - Total calories burned: ${data.workoutStats.totalCalories}
     - Average workout duration: ${data.workoutStats.avgDuration} minutes
-    - Recent workouts: ${JSON.stringify(data.workouts.slice(0, 10).map(w => ({
-      type: w.type,
-      duration: w.duration,
-      date: w.date,
-      calories: w.caloriesBurned
-    })))}
+    - Recent workouts: ${JSON.stringify(
+      data.workouts.slice(0, 5).map((w) => ({
+        type: w.type,
+        duration: w.duration,
+        date: w.date,
+        calories: w.caloriesBurned,
+      }))
+    )}
     
     Meal Data:
     - Total meals logged: ${data.mealStats.totalMeals}
     - Total calories consumed: ${data.mealStats.totalCalories}
     - Average calories per meal: ${data.mealStats.avgCalories}
     - Nutrition breakdown: ${JSON.stringify(data.mealStats.nutritionBreakdown)}
-    - Recent meals: ${JSON.stringify(data.meals.slice(0, 10).map(m => ({
-      type: m.type,
-      calories: m.calories,
-      date: m.date,
-      foodItems: m.foodItems
-    })))}
+    - Recent meals: ${JSON.stringify(
+      data.meals.slice(0, 5).map((m) => ({
+        type: m.type,
+        calories: m.calories,
+        date: m.date,
+        foodItems: m.foodItems,
+      }))
+    )}
     
-    Please provide 3-4 personalized insights in JSON format with the following structure:
+    Please provide 2-3 personalized insights in JSON format with the following structure:
     {
       "insights": [
         {
@@ -79,16 +88,17 @@ export async function generateInsights(data: InsightData): Promise<Array<{
     `;
 
     const response = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: "gpt-4.1",
       messages: [
         {
           role: "system",
-          content: "You are a professional fitness and nutrition coach providing personalized insights based on user data. Be encouraging, specific, and provide actionable recommendations."
+          content:
+            "You are a professional fitness and nutrition coach providing personalized insights based on user data. Be encouraging, specific, and provide actionable recommendations.",
         },
         {
           role: "user",
-          content: prompt
-        }
+          content: prompt,
+        },
       ],
       response_format: { type: "json_object" },
       max_tokens: 1000,
@@ -98,47 +108,54 @@ export async function generateInsights(data: InsightData): Promise<Array<{
     return result.insights || [];
   } catch (error) {
     console.error("Error generating insights:", error);
-    
+
     // Return fallback insights if OpenAI fails
     return [
       {
         type: "pattern",
         title: "Keep Up the Great Work!",
-        content: "You're making progress on your fitness journey. Consistency is key to achieving your goals.",
-        data: {}
+        content:
+          "You're making progress on your fitness journey. Consistency is key to achieving your goals.",
+        data: {},
       },
       {
         type: "recommendation",
         title: "Stay Hydrated",
-        content: "Remember to drink plenty of water throughout the day, especially before and after workouts.",
-        data: {}
-      }
+        content:
+          "Remember to drink plenty of water throughout the day, especially before and after workouts.",
+        data: {},
+      },
     ];
   }
 }
 
-export async function generateWorkoutRecommendations(recentWorkouts: Workout[]): Promise<string[]> {
+export async function generateWorkoutRecommendations(
+  recentWorkouts: Workout[]
+): Promise<string[]> {
   try {
-    const workoutSummary = recentWorkouts.map(w => `${w.type} - ${w.duration}min`).join(", ");
-    
+    const workoutSummary = recentWorkouts
+      .map((w) => `${w.type} - ${w.duration}min`)
+      .join(", ");
+
     const prompt = `
     Based on these recent workouts: ${workoutSummary}
     
-    Provide 3 specific workout recommendations to help improve variety and effectiveness.
-    Return as JSON: { "recommendations": ["recommendation1", "recommendation2", "recommendation3"] }
+    Provide 2 specific workout recommendations to help improve variety and effectiveness.
+    Return as JSON: { "recommendations": ["recommendation1", "recommendation2"] }
     `;
 
     const response = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: "gpt-4.1",
       messages: [
         {
           role: "system",
-          content: "You are a fitness expert providing workout recommendations."
+          content:
+            "You are a fitness expert providing workout recommendations.",
         },
         {
           role: "user",
-          content: prompt
-        }
+          content: prompt,
+        },
       ],
       response_format: { type: "json_object" },
       max_tokens: 300,
@@ -151,33 +168,37 @@ export async function generateWorkoutRecommendations(recentWorkouts: Workout[]):
     return [
       "Try adding more variety to your workout routine",
       "Consider incorporating strength training if you haven't already",
-      "Remember to include rest days for recovery"
+      "Remember to include rest days for recovery",
     ];
   }
 }
 
-export async function generateNutritionInsights(recentMeals: Meal[]): Promise<string[]> {
+export async function generateNutritionInsights(
+  recentMeals: Meal[]
+): Promise<string[]> {
   try {
-    const mealSummary = recentMeals.map(m => `${m.type}: ${m.calories}cal`).join(", ");
-    
+    const mealSummary = recentMeals
+      .map((m) => `${m.type}: ${m.calories}cal`)
+      .join(", ");
+
     const prompt = `
     Based on these recent meals: ${mealSummary}
     
-    Provide 3 specific nutrition insights or recommendations.
-    Return as JSON: { "insights": ["insight1", "insight2", "insight3"] }
+    Provide 2 specific nutrition insights or recommendations.
+    Return as JSON: { "insights": ["insight1", "insight2"] }
     `;
 
     const response = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: "gpt-4.1",
       messages: [
         {
           role: "system",
-          content: "You are a nutrition expert providing dietary insights."
+          content: "You are a nutrition expert providing dietary insights.",
         },
         {
           role: "user",
-          content: prompt
-        }
+          content: prompt,
+        },
       ],
       response_format: { type: "json_object" },
       max_tokens: 300,
@@ -190,7 +211,7 @@ export async function generateNutritionInsights(recentMeals: Meal[]): Promise<st
     return [
       "Focus on maintaining a balanced diet with adequate protein",
       "Consider adding more fruits and vegetables to your meals",
-      "Stay consistent with your meal timing"
+      "Stay consistent with your meal timing",
     ];
   }
 }
