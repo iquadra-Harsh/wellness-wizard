@@ -18,6 +18,15 @@ import {
 import { generateInsights } from "./openai";
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Health check endpoint
+  app.get("/api/health", (req, res) => {
+    res.status(200).json({
+      status: "healthy",
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime(),
+    });
+  });
+
   // Auth routes
   app.post("/api/auth/register", async (req, res) => {
     console.log("Registering user:", req.body);
