@@ -74,3 +74,11 @@ Log meals or workouts via voice (browser Speech API or Whisper API)
 
 8. Export Data
 Export progress/reports as CSV or PDF
+
+
+# Important Commands
+1. npm run dev
+
+2. npm run db:push
+
+3. npx tsx scripts/seed-exercises.ts
