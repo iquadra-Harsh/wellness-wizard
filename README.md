@@ -82,3 +82,7 @@ Export progress/reports as CSV or PDF
 2. npm run db:push
 
 3. npx tsx scripts/seed-exercises.ts
+
+4. eval "$(ssh-agent -s)"
+
+5. ssh-add PATH-TO-SSH-KEY
