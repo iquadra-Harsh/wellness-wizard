@@ -1,0 +1,75 @@
+version: "3.8"
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: fittracker-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: fittracker_user
+      POSTGRES_PASSWORD: fittracker_password
+      POSTGRES_DB: fittracker_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fittracker_user -d fittracker_db"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - fittracker-network
+
+  # FitTracker Application
+  fittracker-app:
+    build: .
+    container_name: fittracker-app
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://fittracker_user:fittracker_password@postgres:5432/fittracker_db
+      JWT_SECRET: ${JWT_SECRET:-your_jwt_secret_here_please_replace}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-your_openai_api_key_here}
+    volumes:
+      - ./dist:/app/dist
+    ports:
+      - "5000:5000"
+    networks:
+      - fittracker-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Nginx Reverse Proxy
+  nginx:
+    image: nginx:alpine
+    container_name: fittracker-nginx
+    restart: unless-stopped
+    depends_on:
+      - fittracker-app
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./nginx/conf.d:/etc/nginx/conf.d
+      - ./logs/nginx:/var/log/nginx
+    networks:
+      - fittracker-network
+
+networks:
+  fittracker-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local
