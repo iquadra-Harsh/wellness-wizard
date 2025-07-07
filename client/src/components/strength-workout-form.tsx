@@ -32,6 +32,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { Dumbbell, Plus, X, Edit2, Trash2 } from "lucide-react";
+import { ExercisePicker } from "./exercise-picker";
+import { ExerciseDatabase } from "@shared/schema";
 
 const strengthWorkoutFormSchema = z.object({
   type: z.string().default("strength"),
@@ -202,6 +204,17 @@ export function StrengthWorkoutForm({
     setNewExerciseCategory("");
   };
 
+  const addExerciseFromDatabase = (exerciseData: ExerciseDatabase) => {
+    const newExercise: Exercise = {
+      name: exerciseData.name,
+      category: exerciseData.primaryMuscles?.[0] || undefined,
+      sets: [{ setNumber: 1, reps: 10, weight: 0, isWarmup: false }],
+    };
+
+    setExercises([...exercises, newExercise]);
+    toast({ title: `Added ${exerciseData.name} to workout` });
+  };
+
   const removeExercise = (index: number) => {
     const updatedExercises = exercises.filter((_, i) => i !== index);
     setExercises(updatedExercises);
@@ -363,10 +376,43 @@ export function StrengthWorkoutForm({
             <div className="space-y-4">
               <h3 className="text-lg font-semibold">Exercises</h3>
 
-              {/* Add New Exercise */}
+              {/* Add Exercise from Database */}
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-base">Add Exercise</CardTitle>
+                  <CardTitle className="text-base flex items-center">
+                    <Dumbbell className="w-4 h-4 mr-2" />
+                    Exercise Library
+                  </CardTitle>
+                  <p className="text-sm text-muted-foreground">
+                    Browse over 800 exercises with instructions
+                  </p>
+                </CardHeader>
+                <CardContent>
+                  <ExercisePicker
+                    onExerciseSelect={addExerciseFromDatabase}
+                    trigger={
+                      <Button
+                        type="button"
+                        variant="default"
+                        className="w-full"
+                      >
+                        <Plus className="w-4 h-4 mr-2" />
+                        Browse Exercise Library
+                      </Button>
+                    }
+                  />
+                </CardContent>
+              </Card>
+
+              {/* Add Custom Exercise */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">
+                    Add Custom Exercise
+                  </CardTitle>
+                  <p className="text-sm text-muted-foreground">
+                    Add your own exercise not in the library
+                  </p>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
