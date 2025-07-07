@@ -393,11 +393,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const activePlan = await storage.getActiveWorkoutPlan(req.userId!);
         res.json(activePlan);
       } catch (error: any) {
-        res
-          .status(500)
-          .json({
-            message: error.message || "Failed to get active workout plan",
-          });
+        res.status(500).json({
+          message: error.message || "Failed to get active workout plan",
+        });
       }
     }
   );
@@ -548,6 +546,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
         res
           .status(400)
           .json({ message: error.message || "Failed to update user goals" });
+      }
+    }
+  );
+
+  // Exercise Database Routes
+  app.get(
+    "/api/exercises",
+    authenticateToken,
+    async (req: AuthRequest, res) => {
+      try {
+        const { search, primaryMuscle, equipment, level, limit } = req.query;
+        const exercises = await storage.getExercises(
+          search as string,
+          primaryMuscle as string,
+          equipment as string,
+          level as string,
+          limit ? parseInt(limit as string) : undefined
+        );
+        res.json(exercises);
+      } catch (error) {
+        console.error("Error fetching exercises:", error);
+        res.status(500).json({ error: "Internal server error" });
+      }
+    }
+  );
+
+  app.get(
+    "/api/exercises/:id",
+    authenticateToken,
+    async (req: AuthRequest, res) => {
+      try {
+        const { id } = req.params;
+        const exercise = await storage.getExercise(id);
+
+        if (!exercise) {
+          return res.status(404).json({ error: "Exercise not found" });
+        }
+
+        res.json(exercise);
+      } catch (error) {
+        console.error("Error fetching exercise:", error);
+        res.status(500).json({ error: "Internal server error" });
       }
     }
   );

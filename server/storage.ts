@@ -8,6 +8,7 @@ import {
   exercises,
   sets,
   userGoals,
+  exerciseDatabase,
   type User,
   type InsertUser,
   type Workout,
@@ -26,9 +27,11 @@ import {
   type InsertWorkoutPlanDay,
   type UserGoals,
   type InsertUserGoals,
+  type ExerciseDatabase,
+  type InsertExerciseDatabase,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, and, gte, sql } from "drizzle-orm";
+import { eq, desc, and, gte, sql, ilike, or } from "drizzle-orm";
 
 export interface IStorage {
   // User methods
@@ -125,6 +128,16 @@ export interface IStorage {
     userId: number,
     goals: Partial<InsertUserGoals>
   ): Promise<UserGoals | undefined>;
+
+  // Exercise Database methods
+  getExercises(
+    search?: string,
+    primaryMuscle?: string,
+    equipment?: string,
+    level?: string,
+    limit?: number
+  ): Promise<ExerciseDatabase[]>;
+  getExercise(id: string): Promise<ExerciseDatabase | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -653,6 +666,65 @@ export class DatabaseStorage implements IStorage {
       .where(eq(userGoals.userId, userId))
       .returning();
     return updatedGoals;
+  }
+
+  async getExercises(
+    search?: string,
+    primaryMuscle?: string,
+    equipment?: string,
+    level?: string,
+    limit: number = 50
+  ): Promise<ExerciseDatabase[]> {
+    // Build conditions array
+    const conditions = [];
+
+    if (search) {
+      conditions.push(
+        or(
+          ilike(exerciseDatabase.name, `%${search}%`),
+          ilike(exerciseDatabase.id, `%${search}%`)
+        )
+      );
+    }
+
+    if (primaryMuscle) {
+      conditions.push(
+        sql`${primaryMuscle} = ANY(${exerciseDatabase.primaryMuscles})`
+      );
+    }
+
+    if (equipment) {
+      conditions.push(eq(exerciseDatabase.equipment, equipment));
+    }
+
+    if (level) {
+      conditions.push(eq(exerciseDatabase.level, level));
+    }
+
+    // Execute query with conditions
+    if (conditions.length > 0) {
+      return await db
+        .select()
+        .from(exerciseDatabase)
+        .where(and(...conditions))
+        .orderBy(exerciseDatabase.name)
+        .limit(limit);
+    }
+
+    return await db
+      .select()
+      .from(exerciseDatabase)
+      .orderBy(exerciseDatabase.name)
+      .limit(limit);
+  }
+
+  async getExercise(id: string): Promise<ExerciseDatabase | undefined> {
+    const [exercise] = await db
+      .select()
+      .from(exerciseDatabase)
+      .where(eq(exerciseDatabase.id, id));
+
+    return exercise || undefined;
   }
 }
 

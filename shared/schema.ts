@@ -43,11 +43,29 @@ export const workouts = pgTable("workouts", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+// Reference exercise database table
+export const exerciseDatabase = pgTable("exercise_database", {
+  id: text("id").primaryKey(), // e.g., "Alternate_Incline_Dumbbell_Curl"
+  name: text("name").notNull(),
+  force: text("force"), // pull, push, static
+  level: text("level"), // beginner, intermediate, expert
+  mechanic: text("mechanic"), // isolation, compound
+  equipment: text("equipment"), // dumbbell, barbell, etc.
+  primaryMuscles: text("primary_muscles").array(),
+  secondaryMuscles: text("secondary_muscles").array(),
+  instructions: text("instructions").array(),
+  category: text("category"), // strength, cardio, etc.
+  images: text("images").array(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// User workout exercises (instances of exercises from the database)
 export const exercises = pgTable("exercises", {
   id: serial("id").primaryKey(),
   workoutId: integer("workout_id")
     .notNull()
     .references(() => workouts.id, { onDelete: "cascade" }),
+  exerciseId: text("exercise_id").references(() => exerciseDatabase.id), // optional reference to exercise database
   name: text("name").notNull(), // e.g., "Bench Press", "Squat", "Deadlift"
   category: text("category"), // e.g., "chest", "legs", "back"
   notes: text("notes"),
@@ -163,10 +181,21 @@ export const workoutsRelations = relations(workouts, ({ one, many }) => ({
   exercises: many(exercises),
 }));
 
+export const exerciseDatabaseRelations = relations(
+  exerciseDatabase,
+  ({ many }) => ({
+    exercises: many(exercises),
+  })
+);
+
 export const exercisesRelations = relations(exercises, ({ one, many }) => ({
   workout: one(workouts, {
     fields: [exercises.workoutId],
     references: [workouts.id],
+  }),
+  exerciseTemplate: one(exerciseDatabase, {
+    fields: [exercises.exerciseId],
+    references: [exerciseDatabase.id],
   }),
   sets: many(sets),
 }));
@@ -250,6 +279,12 @@ export const insertWorkoutSchema = createInsertSchema(workouts)
     }),
   });
 
+export const insertExerciseDatabaseSchema = createInsertSchema(
+  exerciseDatabase
+).omit({
+  createdAt: true,
+});
+
 export const insertExerciseSchema = createInsertSchema(exercises).omit({
   id: true,
   createdAt: true,
@@ -327,6 +362,10 @@ export type InsertUser = z.infer<typeof insertUserSchema>;
 export type LoginUser = z.infer<typeof loginUserSchema>;
 export type Workout = typeof workouts.$inferSelect;
 export type InsertWorkout = z.infer<typeof insertWorkoutSchema>;
+export type ExerciseDatabase = typeof exerciseDatabase.$inferSelect;
+export type InsertExerciseDatabase = z.infer<
+  typeof insertExerciseDatabaseSchema
+>;
 export type Exercise = typeof exercises.$inferSelect;
 export type InsertExercise = z.infer<typeof insertExerciseSchema>;
 export type Set = typeof sets.$inferSelect;
